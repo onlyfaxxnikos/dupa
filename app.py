@@ -61,10 +61,19 @@ def init_db():
         ''')
         print("Generated documents table created/verified")
 
-        conn.commit()
+        # Seed admin user if not exists
+        print("Checking for admin user...")
+        try:
+            cur.execute('INSERT INTO users (username, password, has_access, is_admin) VALUES (%s, %s, %s, %s)',
+                       ('mamba', 'MangoMango67', True, True))
+            conn.commit()
+            print("✓ Admin user 'mamba' created successfully!")
+        except psycopg.IntegrityError:
+            print("✓ Admin user 'mamba' already exists")
+        
         cur.close()
         conn.close()
-        print("Database initialization completed successfully!")
+        print("✓ Database initialization completed successfully!")
     except Exception as e:
         print(f"ERROR: Database initialization failed: {e}")
         import traceback
