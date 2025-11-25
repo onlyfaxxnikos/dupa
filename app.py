@@ -12,19 +12,13 @@ load_dotenv()
 app = Flask(__name__, static_folder='.', static_url_path='')
 CORS(app)
 
-# Serve static files from /assets/ and root
+# Serve static files from /assets/
 @app.route('/assets/<path:filename>')
 def serve_assets(filename):
-    return send_from_directory('assets', filename)
-
-@app.route('/<filename>')
-def serve_root_file(filename):
-    """Serve files from root directory (favicon, etc)"""
-    if os.path.isfile(filename):
-        from mimetypes import guess_type
-        mimetype, _ = guess_type(filename)
-        return send_file(filename, mimetype=mimetype or 'text/plain')
-    return "Not found", 404
+    try:
+        return send_from_directory('assets', filename)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 404
 
 # Serve HTML files with proper caching headers
 def serve_html(filename):
@@ -141,7 +135,6 @@ def seed():
         conn = get_db()
         cur = conn.cursor(row_factory=dict_row)
         
-        # Try to create admin user
         try:
             cur.execute(
                 'INSERT INTO users (username, password, has_access, is_admin) VALUES (%s, %s, %s, %s)',
@@ -172,7 +165,6 @@ def create_user():
         conn = get_db()
         cur = conn.cursor(row_factory=dict_row)
 
-        # Create user with access enabled by default
         cur.execute(
             'INSERT INTO users (username, password, has_access) VALUES (%s, %s, %s)',
             (username, password, True))
@@ -204,8 +196,7 @@ def login():
             return jsonify({'error': 'Invalid credentials'}), 401
 
         if not user['has_access']:
-            return jsonify({'error':
-                            'Access denied. Contact administrator'}), 403
+            return jsonify({'error': 'Access denied. Contact administrator'}), 403
 
         return jsonify({
             'user_id': user['id'],
@@ -225,12 +216,8 @@ def save_document():
         conn = get_db()
         cur = conn.cursor()
         cur.execute(
-            '''
-            INSERT INTO generated_documents (user_id, name, surname, pesel, data)
-            VALUES (%s, %s, %s, %s, %s)
-        ''',
-            (user_id, data.get('name'), data.get('surname'), data.get('pesel'),
-             str(data)))
+            'INSERT INTO generated_documents (user_id, name, surname, pesel, data) VALUES (%s, %s, %s, %s, %s)',
+            (user_id, data.get('name'), data.get('surname'), data.get('pesel'), str(data)))
         conn.commit()
         cur.close()
         conn.close()
@@ -244,10 +231,7 @@ def get_users():
     try:
         conn = get_db()
         cur = conn.cursor(row_factory=dict_row)
-
-        cur.execute(
-            'SELECT id, username, has_access, created_at FROM users ORDER BY created_at DESC'
-        )
+        cur.execute('SELECT id, username, has_access, created_at FROM users ORDER BY created_at DESC')
         users = cur.fetchall()
         cur.close()
         conn.close()
@@ -264,9 +248,7 @@ def update_access(user_id):
     try:
         conn = get_db()
         cur = conn.cursor(row_factory=dict_row)
-
-        cur.execute('UPDATE users SET has_access = %s WHERE id = %s',
-                    (has_access, user_id))
+        cur.execute('UPDATE users SET has_access = %s WHERE id = %s', (has_access, user_id))
         conn.commit()
         cur.close()
         conn.close()
@@ -280,7 +262,6 @@ def get_all_documents():
     try:
         conn = get_db()
         cur = conn.cursor(row_factory=dict_row)
-
         cur.execute('''
             SELECT d.id, u.username, d.name, d.surname, d.pesel, d.created_at
             FROM generated_documents d
@@ -295,7 +276,7 @@ def get_all_documents():
         return jsonify({'error': str(e)}), 500
 
 
-# Initialize database on startup (before gunicorn starts)
+# Initialize database on startup
 init_db()
 
 if __name__ == '__main__':
