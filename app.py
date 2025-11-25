@@ -135,6 +135,7 @@ def seed():
         conn = get_db()
         cur = conn.cursor(row_factory=dict_row)
         
+        # Try to create admin user
         try:
             cur.execute(
                 'INSERT INTO users (username, password, has_access, is_admin) VALUES (%s, %s, %s, %s)',
@@ -165,6 +166,7 @@ def create_user():
         conn = get_db()
         cur = conn.cursor(row_factory=dict_row)
 
+        # Create user with access enabled by default
         cur.execute(
             'INSERT INTO users (username, password, has_access) VALUES (%s, %s, %s)',
             (username, password, True))
@@ -196,7 +198,8 @@ def login():
             return jsonify({'error': 'Invalid credentials'}), 401
 
         if not user['has_access']:
-            return jsonify({'error': 'Access denied. Contact administrator'}), 403
+            return jsonify({'error':
+                            'Access denied. Contact administrator'}), 403
 
         return jsonify({
             'user_id': user['id'],
@@ -216,8 +219,12 @@ def save_document():
         conn = get_db()
         cur = conn.cursor()
         cur.execute(
-            'INSERT INTO generated_documents (user_id, name, surname, pesel, data) VALUES (%s, %s, %s, %s, %s)',
-            (user_id, data.get('name'), data.get('surname'), data.get('pesel'), str(data)))
+            '''
+            INSERT INTO generated_documents (user_id, name, surname, pesel, data)
+            VALUES (%s, %s, %s, %s, %s)
+        ''',
+            (user_id, data.get('name'), data.get('surname'), data.get('pesel'),
+             str(data)))
         conn.commit()
         cur.close()
         conn.close()
@@ -231,7 +238,10 @@ def get_users():
     try:
         conn = get_db()
         cur = conn.cursor(row_factory=dict_row)
-        cur.execute('SELECT id, username, has_access, created_at FROM users ORDER BY created_at DESC')
+
+        cur.execute(
+            'SELECT id, username, has_access, created_at FROM users ORDER BY created_at DESC'
+        )
         users = cur.fetchall()
         cur.close()
         conn.close()
@@ -248,7 +258,9 @@ def update_access(user_id):
     try:
         conn = get_db()
         cur = conn.cursor(row_factory=dict_row)
-        cur.execute('UPDATE users SET has_access = %s WHERE id = %s', (has_access, user_id))
+
+        cur.execute('UPDATE users SET has_access = %s WHERE id = %s',
+                    (has_access, user_id))
         conn.commit()
         cur.close()
         conn.close()
@@ -262,6 +274,7 @@ def get_all_documents():
     try:
         conn = get_db()
         cur = conn.cursor(row_factory=dict_row)
+
         cur.execute('''
             SELECT d.id, u.username, d.name, d.surname, d.pesel, d.created_at
             FROM generated_documents d
@@ -276,7 +289,7 @@ def get_all_documents():
         return jsonify({'error': str(e)}), 500
 
 
-# Initialize database on startup
+# Initialize database on startup (before gunicorn starts)
 init_db()
 
 if __name__ == '__main__':
