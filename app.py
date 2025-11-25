@@ -18,6 +18,9 @@ def get_db():
 
 def init_db():
     """Initialize database with required tables"""
+        if not os.environ.get('DATABASE_URL'):
+        print("DATABASE_URL not set - skipping database initialization")
+        return
     try:
         conn = get_db()
         cur = conn.cursor()
